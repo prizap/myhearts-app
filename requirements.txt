@@ -1,1 +1,6 @@
-streamlit
+# requirements.txt
+streamlit>=1.22
+scikit-learn
+pandas
+numpy
+joblib     # optional, only if you want to load from S3
