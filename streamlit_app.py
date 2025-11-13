@@ -39,8 +39,8 @@ def load_model(model_dir: str = MODEL_DIR, model_file: Optional[str] = MODEL_FIL
     return chosen, pipe
 
 
-st.set_page_config(page_title="Heart Disease Predictor", layout="centered")
-st.title("Heart Disease Prediction (Streamlit demo)")
+st.set_page_config(page_title="Prediksi Penyakit Jantung", layout="centered")
+st.title("Demo Prediksi Penyakit Jantung")
 
 st.markdown("This app loads a saved scikit-learn pipeline (preprocessor + model) from `saved_models/all_models/` andperforms single or batch predictions.")
 
@@ -51,6 +51,8 @@ try:
 except Exception as e:
     st.error(f"Failed to load model: {e}")
     st.stop()
+
+FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
 
 # Sidebar: single input
 st.sidebar.header("Single prediction input")
@@ -69,15 +71,39 @@ ca = st.sidebar.number_input("ca", value=0, min_value=0, max_value=5)
 thal = st.sidebar.number_input("thal", value=1, min_value=0, max_value=5)
 
 if st.sidebar.button("Predict (single)"):
-    row = np.array([[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]])
+    # buat dict sesuai nama kolom agar ColumnTransformer yang mengandalkan nama kolom bisa bekerja
+    row_dict = {
+        "age": age, "sex": sex, "cp": cp, "trestbps": trestbps, "chol": chol,
+        "fbs": fbs, "restecg": restecg, "thalach": thalach, "exang": exang,
+        "oldpeak": oldpeak, "slope": slope, "ca": ca, "thal": thal
+    }
+    df_row = pd.DataFrame([row_dict], columns=FEATURE_COLUMNS)
+
     try:
-        pred = model_pipe.predict(row).tolist()
-        proba = model_pipe.predict_proba(row)[:,1].tolist() if hasattr(model_pipe, "predict_proba") else None
+        # jika pipeline mengharapkan DataFrame dengan kolom bernama, ini akan bekerja
+        pred = model_pipe.predict(df_row).tolist()
+        # coba dapatkan probabilitas, jika tersedia
+        try:
+            proba = model_pipe.predict_proba(df_row)[:,1].tolist()
+        except Exception:
+            proba = None
         st.write("**Prediction (label):**", pred[0])
         if proba is not None:
             st.write("**Probability (class=1):**", round(proba[0], 4))
     except Exception as e:
-        st.error(f"Prediction failed: {e}")
+        # fallback: jika model hanya menerima numpy arrays
+        try:
+            arr = df_row.values
+            pred = model_pipe.predict(arr).tolist()
+            try:
+                proba = model_pipe.predict_proba(arr)[:,1].tolist()
+            except Exception:
+                proba = None
+            st.write("**Prediction (label):**", pred[0])
+            if proba is not None:
+                st.write("**Probability (class=1):**", round(proba[0], 4))
+        except Exception as e2:
+            st.error(f"Prediction failed: {e} / fallback error: {e2}")
 
 st.markdown("---")
 
@@ -87,16 +113,20 @@ uploaded = st.file_uploader("Upload CSV with columns: age,sex,cp,trestbps,chol,f
 if uploaded:
     df = pd.read_csv(uploaded)
     st.write("Preview:", df.head())
-    required = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
+    required = FEATURE_COLUMNS
     missing = [c for c in required if c not in df.columns]
     if missing:
         st.error(f"Missing columns in uploaded CSV: {missing}")
     else:
         if st.button("Run batch prediction"):
-            X = df[required].values
+            # gunakan DataFrame slice sehingga preprocessor bisa memilih kolom berdasarkan nama
+            df_input = df[required].copy()
             try:
-                preds = model_pipe.predict(X)
-                probs = model_pipe.predict_proba(X)[:,1] if hasattr(model_pipe, "predict_proba") else None
+                preds = model_pipe.predict(df_input)
+                try:
+                    probs = model_pipe.predict_proba(df_input)[:,1]
+                except Exception:
+                    probs = None
                 df_out = df.copy()
                 df_out['prediction'] = preds
                 if probs is not None:
