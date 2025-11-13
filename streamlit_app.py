@@ -13,9 +13,6 @@ MODEL_DIR = os.getenv("MODEL_DIR", "saved_models/all_models")
 # If you know the exact filename, you can set MODEL_FILE to that name; otherwise leave None to auto-select latest .pkl
 MODEL_FILE = os.getenv("MODEL_FILE", "model_SVC_20251113_082336.pkl")  # empty means auto-find latest
 
-#FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
-
-
 @st.cache_resource(show_spinner=False)
 def load_model(model_dir: str = MODEL_DIR, model_file: Optional[str] = MODEL_FILE):
     """Load a joblib model from the given directory. If model_file is empty, load the latest .pkl file found.
@@ -42,10 +39,10 @@ def load_model(model_dir: str = MODEL_DIR, model_file: Optional[str] = MODEL_FIL
     return chosen, pipe
 
 
-st.set_page_config(page_title="Prediksi Penyakit Jantung", layout="centered")
-st.title("Demo Prediksi Penyakit Jantung")
+st.set_page_config(page_title="Heart Disease Predictor", layout="centered")
+st.title("Heart Disease Prediction (Streamlit demo)")
 
-st.markdown("This app loads a saved scikit-learn pipeline (preprocessor + model) from `saved_models/all_models/` andperforms single or batch predictions.")
+st.markdown("This app loads a saved scikit-learn pipeline (preprocessor + model) from `saved_models/all_models/` and performs single or batch predictions.")
 
 # Try to load model
 try:
@@ -54,7 +51,6 @@ try:
 except Exception as e:
     st.error(f"Failed to load model: {e}")
     st.stop()
-
 
 # Sidebar: single input
 st.sidebar.header("Single prediction input")
@@ -82,7 +78,6 @@ if st.sidebar.button("Predict (single)"):
             st.write("**Probability (class=1):**", round(proba[0], 4))
     except Exception as e:
         st.error(f"Prediction failed: {e}")
-
 
 st.markdown("---")
 
@@ -115,7 +110,6 @@ if uploaded:
                 st.download_button("Download predictions CSV", data=towrite, file_name="predictions.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"Batch prediction failed: {e}")
- 
 
 st.markdown("---")
 st.write("Notes:\n- Ensure uploaded CSV has the exact columns and data types used at training.\n- For large models, consider storing model externally (S3/GCS) and loading in startup.")
