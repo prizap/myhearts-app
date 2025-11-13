@@ -13,7 +13,7 @@ MODEL_DIR = os.getenv("MODEL_DIR", "saved_models/all_models")
 # If you know the exact filename, you can set MODEL_FILE to that name; otherwise leave None to auto-select latest .pkl
 MODEL_FILE = os.getenv("MODEL_FILE", "model_SVC_20251113_082336.pkl")  # empty means auto-find latest
 
-FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
+#FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
 
 
 @st.cache_resource(show_spinner=False)
@@ -92,20 +92,16 @@ uploaded = st.file_uploader("Upload CSV with columns: age,sex,cp,trestbps,chol,f
 if uploaded:
     df = pd.read_csv(uploaded)
     st.write("Preview:", df.head())
-    required = FEATURE_COLUMNS
+    required = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
     missing = [c for c in required if c not in df.columns]
     if missing:
         st.error(f"Missing columns in uploaded CSV: {missing}")
     else:
         if st.button("Run batch prediction"):
-            # gunakan DataFrame slice sehingga preprocessor bisa memilih kolom berdasarkan nama
-            df_input = df[required].copy()
+            X = df[required].values
             try:
-                preds = model_pipe.predict(df_input)
-                try:
-                    probs = model_pipe.predict_proba(df_input)[:,1]
-                except Exception:
-                    probs = None
+                preds = model_pipe.predict(X)
+                probs = model_pipe.predict_proba(X)[:,1] if hasattr(model_pipe, "predict_proba") else None
                 df_out = df.copy()
                 df_out['prediction'] = preds
                 if probs is not None:
@@ -119,6 +115,7 @@ if uploaded:
                 st.download_button("Download predictions CSV", data=towrite, file_name="predictions.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"Batch prediction failed: {e}")
+ 
 
 st.markdown("---")
 st.write("Notes:\n- Ensure uploaded CSV has the exact columns and data types used at training.\n- For large models, consider storing model externally (S3/GCS) and loading in startup.")
