@@ -13,6 +13,9 @@ MODEL_DIR = os.getenv("MODEL_DIR", "saved_models/all_models")
 # If you know the exact filename, you can set MODEL_FILE to that name; otherwise leave None to auto-select latest .pkl
 MODEL_FILE = os.getenv("MODEL_FILE", "model_SVC_20251113_082336.pkl")  # empty means auto-find latest
 
+FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
+
+
 @st.cache_resource(show_spinner=False)
 def load_model(model_dir: str = MODEL_DIR, model_file: Optional[str] = MODEL_FILE):
     """Load a joblib model from the given directory. If model_file is empty, load the latest .pkl file found.
@@ -52,7 +55,6 @@ except Exception as e:
     st.error(f"Failed to load model: {e}")
     st.stop()
 
-FEATURE_COLUMNS = ["age","sex","cp","trestbps","chol","fbs","restecg","thalach","exang","oldpeak","slope","ca","thal"]
 
 # Sidebar: single input
 st.sidebar.header("Single prediction input")
@@ -71,39 +73,16 @@ ca = st.sidebar.number_input("ca", value=0, min_value=0, max_value=5)
 thal = st.sidebar.number_input("thal", value=1, min_value=0, max_value=5)
 
 if st.sidebar.button("Predict (single)"):
-    # buat dict sesuai nama kolom agar ColumnTransformer yang mengandalkan nama kolom bisa bekerja
-    row_dict = {
-        "age": age, "sex": sex, "cp": cp, "trestbps": trestbps, "chol": chol,
-        "fbs": fbs, "restecg": restecg, "thalach": thalach, "exang": exang,
-        "oldpeak": oldpeak, "slope": slope, "ca": ca, "thal": thal
-    }
-    df_row = pd.DataFrame([row_dict], columns=FEATURE_COLUMNS)
-
+    row = np.array([[age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]])
     try:
-        # jika pipeline mengharapkan DataFrame dengan kolom bernama, ini akan bekerja
-        pred = model_pipe.predict(df_row).tolist()
-        # coba dapatkan probabilitas, jika tersedia
-        try:
-            proba = model_pipe.predict_proba(df_row)[:,1].tolist()
-        except Exception:
-            proba = None
+        pred = model_pipe.predict(row).tolist()
+        proba = model_pipe.predict_proba(row)[:,1].tolist() if hasattr(model_pipe, "predict_proba") else None
         st.write("**Prediction (label):**", pred[0])
         if proba is not None:
             st.write("**Probability (class=1):**", round(proba[0], 4))
     except Exception as e:
-        # fallback: jika model hanya menerima numpy arrays
-        try:
-            arr = df_row.values
-            pred = model_pipe.predict(arr).tolist()
-            try:
-                proba = model_pipe.predict_proba(arr)[:,1].tolist()
-            except Exception:
-                proba = None
-            st.write("**Prediction (label):**", pred[0])
-            if proba is not None:
-                st.write("**Probability (class=1):**", round(proba[0], 4))
-        except Exception as e2:
-            st.error(f"Prediction failed: {e} / fallback error: {e2}")
+        st.error(f"Prediction failed: {e}")
+
 
 st.markdown("---")
 
