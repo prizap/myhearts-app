@@ -1,6 +1,6 @@
 # requirements.txt
-streamlit>=1.22
-scikit-learn
-pandas
-numpy
-joblib     # optional, only if you want to load from S3
+streamlit>=1.33
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+joblib>=1.3
